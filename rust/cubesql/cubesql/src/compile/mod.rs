@@ -2323,7 +2323,7 @@ from
         assert_eq!(
             logical_plan.find_cube_scan().request,
             V1LoadRequestQuery {
-                measures: Some(vec![]),
+                measures: Some(vec!["KibanaSampleDataEcommerce.sumPrice".to_string(),]),
                 dimensions: Some(vec![]),
                 segments: Some(vec![]),
                 order: Some(vec![]),
@@ -2750,7 +2750,7 @@ limit
 
         let query_plan = convert_select_to_query_plan_with_meta(
             r#"
-            SELECT MIN(a.sixteen_charchar), MAX(a.sixteen_charchar_foo), MAX(a.sixteen_charchar_bar) FROM (SELECT * FROM SixteenChar) a
+            SELECT MIN(a.sixteen_charchar), MAX(a.sixteen_charchar_foo), MAX(a.sixteen_charchar_bar), MAX(a.sixteen_charchar_baz) FROM (SELECT * FROM SixteenChar) a
             "#
             .to_string(),
             get_sixteen_char_member_cube(),
@@ -2766,7 +2766,12 @@ limit
         assert_eq!(
             query_plan.as_logical_plan().find_cube_scan().request,
             V1LoadRequestQuery {
-                measures: Some(vec![]),
+                measures: Some(vec![
+                    "SixteenChar.sixteen_charchar".to_string(),
+                    "SixteenChar.sixteen_charchar_foo".to_string(),
+                    "SixteenChar.sixteen_charchar_bar".to_string(),
+                    "SixteenChar.sixteen_charchar_baz".to_string(),
+                ]),
                 dimensions: Some(vec![]),
                 segments: Some(vec![]),
                 order: Some(vec![]),
@@ -2781,7 +2786,7 @@ limit
             .wrapped_sql
             .unwrap()
             .sql
-            .contains("sixteen_charchar_1"));
+            .contains("\"max_a_sixteen_ch_1\""));
 
         assert!(query_plan
             .as_logical_plan()
@@ -2789,7 +2794,7 @@ limit
             .wrapped_sql
             .unwrap()
             .sql
-            .contains("sixteen_charchar_2"));
+            .contains("\"max_a_sixteen_ch_2\""));
     }
 
     #[tokio::test]
@@ -9569,11 +9574,7 @@ ORDER BY "source"."str0" ASC
         assert_eq!(
             query_plan.as_logical_plan().find_cube_scan().request,
             V1LoadRequestQuery {
-                measures: Some(vec![
-                    "Logs.agentCount".to_string(),
-                    "Logs.agentCountApprox".to_string(),
-                    "KibanaSampleDataEcommerce.count".to_string()
-                ]),
+                measures: Some(vec!["Logs.agentCountApprox".to_string(),]),
                 dimensions: Some(vec![
                     "KibanaSampleDataEcommerce.taxful_total_price".to_string(),
                 ]),
@@ -13732,11 +13733,7 @@ ORDER BY "source"."str0" ASC
                 .wrapped_sql
                 .unwrap()
                 .sql;
-            if Rewriter::top_down_extractor_enabled() {
-                assert!(sql.contains("LIMIT 1000"));
-            } else {
-                assert!(sql.contains("\"limit\":1000"));
-            }
+            assert!(sql.contains("LIMIT 1000"));
             assert!(sql.contains("% 7"));
 
             let physical_plan = query_plan.as_physical_plan().await.unwrap();

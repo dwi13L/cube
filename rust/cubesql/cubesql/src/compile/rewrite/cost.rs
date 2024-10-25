@@ -4,7 +4,7 @@ use crate::{
     compile::rewrite::{
         rules::utils::granularity_str_to_int_order, CubeScanUngrouped, CubeScanWrapped,
         DimensionName, LogicalPlanLanguage, MemberErrorPriority, ScalarUDFExprFun,
-        TimeDimensionGranularity, WrappedSelectUngroupedScan,
+        TimeDimensionGranularity, WrappedSelectPushToCube, WrappedSelectUngroupedScan,
     },
     transport::{MetaContext, V1CubeMetaDimensionExt},
 };
@@ -186,6 +186,11 @@ impl BestCubePlan {
             _ => 0,
         };
 
+        let wrapped_no_push_to_cube = match enode {
+            LogicalPlanLanguage::WrappedSelectPushToCube(WrappedSelectPushToCube(false)) => 1,
+            _ => 0,
+        };
+
         let unwrapped_subqueries = match enode {
             LogicalPlanLanguage::Subquery(_) => 1,
             _ => 0,
@@ -218,6 +223,7 @@ impl BestCubePlan {
             ast_size: 1,
             ungrouped_nodes,
             unwrapped_subqueries,
+            wrapped_no_push_to_cube,
         }
     }
 }
@@ -267,6 +273,10 @@ pub struct CubePlanCost {
     ast_size: usize,
     ast_size_inside_wrapper: usize,
     ungrouped_nodes: usize,
+    // This is necessary for queries like `SELECT AVG(avgMeasure) FROM cube;`
+    // Query like that can be represented by WrappedSelect with both push_to_cube=true and push_to_cube=false
+    // And this component is the only thing to differ those
+    wrapped_no_push_to_cube: usize,
 }
 
 #[derive(Debug, Clone, Eq, Hash, PartialEq)]
@@ -387,6 +397,7 @@ impl CubePlanCost {
             ast_size_inside_wrapper: self.ast_size_inside_wrapper + other.ast_size_inside_wrapper,
             ungrouped_nodes: self.ungrouped_nodes + other.ungrouped_nodes,
             unwrapped_subqueries: self.unwrapped_subqueries + other.unwrapped_subqueries,
+            wrapped_no_push_to_cube: self.wrapped_no_push_to_cube + other.wrapped_no_push_to_cube,
         }
     }
 
@@ -465,6 +476,7 @@ impl CubePlanCost {
             ast_size: self.ast_size,
             ast_size_inside_wrapper: self.ast_size_inside_wrapper,
             ungrouped_nodes: self.ungrouped_nodes,
+            wrapped_no_push_to_cube: self.wrapped_no_push_to_cube,
         }
     }
 }
