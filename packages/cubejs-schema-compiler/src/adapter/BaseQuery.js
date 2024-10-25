@@ -2241,13 +2241,6 @@ export class BaseQuery {
       }
     }
 
-    // This is a special recursion guard that might happen sometimes, like
-    // during alias members collection which invokes sql evaluation of all members
-    // when FILTER_PARAMS is proxied for SQL evaluation.
-    if (parentMember === memberPath) {
-      return '';
-    }
-
     this.safeEvaluateSymbolContext().currentMember = memberPath;
     try {
       if (type === 'measure') {
@@ -3895,7 +3888,6 @@ export class BaseQuery {
                 // allBackAliasMembersExceptSegments() -> collectFrom() -> traverseSymbol() -> evaluateSymbolSql() ->
                 // autoPrefixAndEvaluateSql() -> evaluateSql() -> filterProxyFromAllFilters->Proxy->toString()
                 // and so on...
-                // For this case there is a recursion guard added to this.evaluateSymbolSql()
                 const aliases = allFilters ?
                   allFilters
                     .map(v => (v.query ? v.query.allBackAliasMembersExceptSegments() : {}))
