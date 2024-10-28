@@ -3888,15 +3888,13 @@ export class BaseQuery {
                 // allBackAliasMembersExceptSegments() -> collectFrom() -> traverseSymbol() -> evaluateSymbolSql() ->
                 // autoPrefixAndEvaluateSql() -> evaluateSql() -> filterProxyFromAllFilters->Proxy->toString()
                 // and so on...
-                const groupMember = cubeEvaluator.pathFromArray([cubeNameObj.cube, propertyName]);
                 const aliases = allFilters ?
                   allFilters
-                    // No need to collect aliases for itself
-                    .filter(v => (v.query ? v.query.safeEvaluateSymbolContext().currentMember !== groupMember : true))
                     .map(v => (v.query ? v.query.allBackAliasMembersExceptSegments() : {}))
                     .reduce((a, b) => ({ ...a, ...b }), {})
                   : {};
                 // Filtering aliases that somehow relate to this group member
+                const groupMember = cubeEvaluator.pathFromArray([cubeNameObj.cube, propertyName]);
                 const aliasesForGroupMembers = Object.entries(aliases)
                   .filter(([key, _value]) => key === groupMember)
                   .map(([_key, value]) => value);
