@@ -5,7 +5,8 @@ use crate::{
         rules::wrapper::WrapperRules,
         transforming_rewrite, wrapper_pullup_replacer, wrapper_pushdown_replacer,
         EmptyRelationDerivedSourceTableName, LogicalPlanLanguage, WrapperPullupReplacerAliasToCube,
-        WrapperPullupReplacerPushToCube, WrapperPushdownReplacerPushToCube,
+        WrapperPullupReplacerPushToCube, WrapperPullupReplacerUngroupedScan,
+        WrapperPushdownReplacerPushToCube, WrapperPushdownReplacerUngroupedScan,
     },
     copy_flag,
     transport::MetaContext,
@@ -25,6 +26,7 @@ impl WrapperRules {
                             "?cube_scan_input",
                             "?inner_alias_to_cube",
                             "?nner_push_to_cube",
+                            "?inner_ungrouped_scan",
                             "?inner_in_projection",
                             "?inner_cube_members",
                         ),
@@ -32,6 +34,7 @@ impl WrapperRules {
                     ),
                     "?alias_to_cube",
                     "?push_to_cube",
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 ),
@@ -39,6 +42,7 @@ impl WrapperRules {
                     "?cube_scan_input",
                     "?alias_to_cube",
                     "?pullup_push_to_cube",
+                    "?pullup_ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 ),
@@ -46,6 +50,8 @@ impl WrapperRules {
                     "?cube_scan_input",
                     "?push_to_cube",
                     "?pullup_push_to_cube",
+                    "?ungrouped_scan",
+                    "?pullup_ungrouped_scan",
                 ),
             ),
             transforming_rewrite(
@@ -64,6 +70,7 @@ impl WrapperRules {
                         ),
                         "?alias_to_cube",
                         "WrapperPullupReplacerPushToCube:false",
+                        "WrapperPullupReplacerUngroupedScan:false",
                         "WrapperPullupReplacerInProjection:true",
                         "CubeScanMembers",
                     ),
@@ -146,10 +153,14 @@ impl WrapperRules {
         cube_scan_input_var: &'static str,
         push_to_cube_var: &'static str,
         pullup_push_to_cube_var: &'static str,
+        ungrouped_scan_var: &'static str,
+        pullup_ungrouped_scan_var: &'static str,
     ) -> impl Fn(&mut CubeEGraph, &mut Subst) -> bool {
         let cube_scan_input_var = var!(cube_scan_input_var);
         let push_to_cube_var = var!(push_to_cube_var);
         let pullup_push_to_cube_var = var!(pullup_push_to_cube_var);
+        let ungrouped_scan_var = var!(ungrouped_scan_var);
+        let pullup_ungrouped_scan_var = var!(pullup_ungrouped_scan_var);
         move |egraph, subst| {
             if !copy_flag!(
                 egraph,
@@ -158,6 +169,17 @@ impl WrapperRules {
                 WrapperPushdownReplacerPushToCube,
                 pullup_push_to_cube_var,
                 WrapperPullupReplacerPushToCube
+            ) {
+                return false;
+            }
+
+            if !copy_flag!(
+                egraph,
+                subst,
+                ungrouped_scan_var,
+                WrapperPushdownReplacerUngroupedScan,
+                pullup_ungrouped_scan_var,
+                WrapperPullupReplacerUngroupedScan
             ) {
                 return false;
             }

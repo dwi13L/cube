@@ -1,25 +1,27 @@
 use crate::{
     compile::rewrite::{
         analysis::Member,
-        column_expr, rewrite,
+        column_expr,
         rewriter::{CubeEGraph, CubeRewrite},
         rules::wrapper::WrapperRules,
         transforming_rewrite, wrapper_pullup_replacer, wrapper_pushdown_replacer, ColumnExprColumn,
-        LogicalPlanLanguage, WrapperPullupReplacerAliasToCube,
+        LogicalPlanLanguage, WrapperPullupReplacerAliasToCube, WrapperPullupReplacerUngroupedScan,
+        WrapperPushdownReplacerUngroupedScan,
     },
-    var, var_iter,
+    copy_flag, var, var_iter,
 };
 use egg::Subst;
 
 impl WrapperRules {
     pub fn column_rules(&self, rules: &mut Vec<CubeRewrite>) {
         rules.extend(vec![
-            rewrite(
+            transforming_rewrite(
                 "wrapper-push-down-column",
                 wrapper_pushdown_replacer(
                     column_expr("?name"),
                     "?alias_to_cube",
                     "WrapperPushdownReplacerPushToCube:false",
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 ),
@@ -27,9 +29,11 @@ impl WrapperRules {
                     column_expr("?name"),
                     "?alias_to_cube",
                     "WrapperPullupReplacerPushToCube:false",
+                    "?pullup_ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 ),
+                self.transform_column("?ungrouped_scan", "?pullup_ungrouped_scan"),
             ),
             // TODO This is half measure implementation to propagate ungrouped simple measure towards aggregate node that easily allow replacement of aggregation functions
             // We need to support it for complex aka `number` measures
@@ -39,6 +43,7 @@ impl WrapperRules {
                     column_expr("?name"),
                     "?alias_to_cube",
                     "WrapperPushdownReplacerPushToCube:true",
+                    "?ungrouped_scan",
                     "WrapperPullupReplacerInProjection:true",
                     "?cube_members",
                 ),
@@ -46,10 +51,16 @@ impl WrapperRules {
                     column_expr("?name"),
                     "?alias_to_cube",
                     "WrapperPullupReplacerPushToCube:true",
+                    "?pullup_ungrouped_scan",
                     "WrapperPullupReplacerInProjection:true",
                     "?cube_members",
                 ),
-                self.pushdown_simple_measure("?name", "?cube_members"),
+                self.pushdown_simple_measure(
+                    "?name",
+                    "?cube_members",
+                    "?ungrouped_scan",
+                    "?pullup_ungrouped_scan",
+                ),
             ),
             // TODO time dimension support
             transforming_rewrite(
@@ -58,6 +69,7 @@ impl WrapperRules {
                     column_expr("?name"),
                     "?alias_to_cube",
                     "WrapperPushdownReplacerPushToCube:true",
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 ),
@@ -65,10 +77,18 @@ impl WrapperRules {
                     "?dimension",
                     "?alias_to_cube",
                     "WrapperPullupReplacerPushToCube:true",
+                    "?pullup_ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 ),
-                self.pushdown_dimension("?alias_to_cube", "?name", "?cube_members", "?dimension"),
+                self.pushdown_dimension(
+                    "?alias_to_cube",
+                    "?name",
+                    "?cube_members",
+                    "?dimension",
+                    "?ungrouped_scan",
+                    "?pullup_ungrouped_scan",
+                ),
             ),
         ]);
     }
@@ -79,12 +99,26 @@ impl WrapperRules {
         column_name_var: &'static str,
         members_var: &'static str,
         dimension_var: &'static str,
+        ungrouped_scan_var: &'static str,
+        pullup_ungrouped_scan_var: &'static str,
     ) -> impl Fn(&mut CubeEGraph, &mut Subst) -> bool {
         let alias_to_cube_var = var!(alias_to_cube_var);
         let column_name_var = var!(column_name_var);
         let members_var = var!(members_var);
         let dimension_var = var!(dimension_var);
+        let ungrouped_scan_var = var!(ungrouped_scan_var);
+        let pullup_ungrouped_scan_var = var!(pullup_ungrouped_scan_var);
         move |egraph, subst| {
+            if !copy_flag!(
+                egraph,
+                subst,
+                ungrouped_scan_var,
+                WrapperPushdownReplacerUngroupedScan,
+                pullup_ungrouped_scan_var,
+                WrapperPullupReplacerUngroupedScan
+            ) {
+                return false;
+            }
             let columns: Vec<_> = var_iter!(egraph[subst[column_name_var]], ColumnExprColumn)
                 .cloned()
                 .collect();
@@ -140,15 +174,53 @@ impl WrapperRules {
         }
     }
 
+    fn transform_column(
+        &self,
+        ungrouped_scan_var: &'static str,
+        pullup_ungrouped_scan_var: &'static str,
+    ) -> impl Fn(&mut CubeEGraph, &mut Subst) -> bool {
+        let ungrouped_scan_var = var!(ungrouped_scan_var);
+        let pullup_ungrouped_scan_var = var!(pullup_ungrouped_scan_var);
+        move |egraph, subst| {
+            if !copy_flag!(
+                egraph,
+                subst,
+                ungrouped_scan_var,
+                WrapperPushdownReplacerUngroupedScan,
+                pullup_ungrouped_scan_var,
+                WrapperPullupReplacerUngroupedScan
+            ) {
+                return false;
+            }
+
+            true
+        }
+    }
+
     fn pushdown_simple_measure(
         &self,
         column_name_var: &'static str,
         members_var: &'static str,
+        ungrouped_scan_var: &'static str,
+        pullup_ungrouped_scan_var: &'static str,
     ) -> impl Fn(&mut CubeEGraph, &mut Subst) -> bool {
         let column_name_var = var!(column_name_var);
         let members_var = var!(members_var);
+        let ungrouped_scan_var = var!(ungrouped_scan_var);
+        let pullup_ungrouped_scan_var = var!(pullup_ungrouped_scan_var);
         let meta = self.meta_context.clone();
         move |egraph, subst| {
+            if !copy_flag!(
+                egraph,
+                subst,
+                ungrouped_scan_var,
+                WrapperPushdownReplacerUngroupedScan,
+                pullup_ungrouped_scan_var,
+                WrapperPullupReplacerUngroupedScan
+            ) {
+                return false;
+            }
+
             let columns: Vec<_> = var_iter!(egraph[subst[column_name_var]], ColumnExprColumn)
                 .cloned()
                 .collect();

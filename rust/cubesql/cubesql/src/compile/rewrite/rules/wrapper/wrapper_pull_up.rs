@@ -5,9 +5,9 @@ use crate::{
         rules::wrapper::WrapperRules,
         transforming_rewrite, wrapped_select, wrapped_select_having_expr_empty_tail,
         wrapped_select_joins_empty_tail, wrapper_pullup_replacer, WrappedSelectSelectType,
-        WrappedSelectType,
+        WrappedSelectType, WrappedSelectUngroupedScan, WrapperPullupReplacerUngroupedScan,
     },
-    var, var_iter, var_list_iter,
+    copy_flag, var, var_iter, var_list_iter,
 };
 use egg::Subst;
 
@@ -23,6 +23,7 @@ impl WrapperRules {
                             "?projection_expr",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -30,6 +31,7 @@ impl WrapperRules {
                             "?subqueries",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -37,6 +39,7 @@ impl WrapperRules {
                             "?group_expr",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -44,6 +47,7 @@ impl WrapperRules {
                             "?aggr_expr",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -51,6 +55,7 @@ impl WrapperRules {
                             "?window_expr",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -58,6 +63,7 @@ impl WrapperRules {
                             "?cube_scan_input",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -66,6 +72,7 @@ impl WrapperRules {
                             "?filter_expr",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -76,6 +83,7 @@ impl WrapperRules {
                             "?order_expr",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -108,16 +116,20 @@ impl WrapperRules {
                             "?select_ungrouped_scan",
                         ),
                         "?alias_to_cube",
-                        // TODO in fact ungrouped flag is being used not only to indicate that underlying query is ungrouped however to indicate that WrappedSelect won't push down Cube members. Do we need separate flags?
                         // This is fixed to false for any LHS because we should only allow to push to Cube when from is ungrouped CubeScan
                         // And after pulling replacer over this node it will be WrappedSelect(from=CubeScan), so it should not allow to push for whatever LP is on top of it
                         "WrapperPullupReplacerPushToCube:false",
+                        "?ungrouped_scan_out",
                         "?in_projection",
                         "?cube_members",
                     ),
                     "CubeScanWrapperFinalized:false",
                 ),
-                self.transform_pull_up_wrapper_select("?cube_scan_input"),
+                self.transform_pull_up_wrapper_select(
+                    "?cube_scan_input",
+                    "?select_ungrouped_scan",
+                    "?ungrouped_scan_out",
+                ),
             ),
             transforming_rewrite(
                 "wrapper-pull-up-to-cube-scan-non-trivial-wrapped-select",
@@ -128,6 +140,7 @@ impl WrapperRules {
                             "?projection_expr",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -135,6 +148,7 @@ impl WrapperRules {
                             "?subqueries",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -142,6 +156,7 @@ impl WrapperRules {
                             "?group_expr",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -149,6 +164,7 @@ impl WrapperRules {
                             "?aggr_expr",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -156,6 +172,7 @@ impl WrapperRules {
                             "?window_expr",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -181,6 +198,7 @@ impl WrapperRules {
                             ),
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -189,6 +207,7 @@ impl WrapperRules {
                             "?filter_expr",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -199,6 +218,7 @@ impl WrapperRules {
                             "?order_expr",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -252,6 +272,7 @@ impl WrapperRules {
                         // This is fixed to false for any LHS because we should only allow to push to Cube when from is ungrouped CubeSCan
                         // And after pulling replacer over this node it will be WrappedSelect(from=WrappedSelect), so it should not allow to push for whatever LP is on top of it
                         "WrapperPullupReplacerPushToCube:false",
+                        "?ungrouped_scan_out",
                         "?inner_projection_expr",
                         "?cube_members",
                     ),
@@ -266,6 +287,8 @@ impl WrapperRules {
                     "?inner_projection_expr",
                     "?inner_group_expr",
                     "?inner_aggr_expr",
+                    "?select_ungrouped_scan",
+                    "?ungrouped_scan_out",
                 ),
             ),
         ]);
@@ -274,12 +297,28 @@ impl WrapperRules {
     fn transform_pull_up_wrapper_select(
         &self,
         cube_scan_input_var: &'static str,
+        select_ungrouped_scan_var: &'static str,
+        ungrouped_scan_out_var: &'static str,
     ) -> impl Fn(&mut CubeEGraph, &mut Subst) -> bool {
         let cube_scan_input_var = var!(cube_scan_input_var);
+        let select_ungrouped_scan_var = var!(select_ungrouped_scan_var);
+        let ungrouped_scan_out_var = var!(ungrouped_scan_out_var);
         move |egraph, subst| {
             for _ in var_list_iter!(egraph[subst[cube_scan_input_var]], WrappedSelect).cloned() {
                 return false;
             }
+
+            if !copy_flag!(
+                egraph,
+                subst,
+                select_ungrouped_scan_var,
+                WrappedSelectUngroupedScan,
+                ungrouped_scan_out_var,
+                WrapperPullupReplacerUngroupedScan
+            ) {
+                return false;
+            }
+
             true
         }
     }
@@ -294,12 +333,27 @@ impl WrapperRules {
         inner_projection_expr_var: &'static str,
         _inner_group_expr_var: &'static str,
         _inner_aggr_expr_var: &'static str,
+        select_ungrouped_scan_var: &'static str,
+        ungrouped_scan_out_var: &'static str,
     ) -> impl Fn(&mut CubeEGraph, &mut Subst) -> bool {
         let select_type_var = var!(select_type_var);
         let projection_expr_var = var!(projection_expr_var);
         let inner_select_type_var = var!(inner_select_type_var);
         let inner_projection_expr_var = var!(inner_projection_expr_var);
+        let select_ungrouped_scan_var = var!(select_ungrouped_scan_var);
+        let ungrouped_scan_out_var = var!(ungrouped_scan_out_var);
         move |egraph, subst| {
+            if !copy_flag!(
+                egraph,
+                subst,
+                select_ungrouped_scan_var,
+                WrappedSelectUngroupedScan,
+                ungrouped_scan_out_var,
+                WrapperPullupReplacerUngroupedScan
+            ) {
+                return false;
+            }
+
             for select_type in
                 var_iter!(egraph[subst[select_type_var]], WrappedSelectSelectType).cloned()
             {

@@ -10,7 +10,8 @@ use crate::{
         wrapped_select_window_expr_empty_tail, wrapper_pullup_replacer, wrapper_pushdown_replacer,
         ListType, LogicalPlanLanguage, ProjectionAlias, WrappedSelectAlias,
         WrappedSelectPushToCube, WrappedSelectUngroupedScan, WrapperPullupReplacerPushToCube,
-        WrapperPushdownReplacerPushToCube,
+        WrapperPullupReplacerUngroupedScan, WrapperPushdownReplacerPushToCube,
+        WrapperPushdownReplacerUngroupedScan,
     },
     copy_flag, var, var_iter,
 };
@@ -27,6 +28,7 @@ impl WrapperRules {
                         "?cube_scan_input",
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "?in_projection",
                         "?cube_members",
                     ),
@@ -42,6 +44,7 @@ impl WrapperRules {
                         "?expr",
                         "?alias_to_cube",
                         "?pushdown_push_to_cube",
+                        "?pushdown_ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -49,6 +52,7 @@ impl WrapperRules {
                         wrapped_select_subqueries_empty_tail(),
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -56,6 +60,7 @@ impl WrapperRules {
                         wrapped_select_group_expr_empty_tail(),
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -63,6 +68,7 @@ impl WrapperRules {
                         wrapped_select_aggr_expr_empty_tail(),
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -70,6 +76,7 @@ impl WrapperRules {
                         wrapped_select_window_expr_empty_tail(),
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -77,6 +84,7 @@ impl WrapperRules {
                         "?cube_scan_input",
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -85,6 +93,7 @@ impl WrapperRules {
                         wrapped_select_filter_expr_empty_tail(),
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -95,6 +104,7 @@ impl WrapperRules {
                         wrapped_select_order_expr_empty_tail(),
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -110,6 +120,8 @@ impl WrapperRules {
                 "?projection_alias",
                 "?push_to_cube",
                 "?pushdown_push_to_cube",
+                "?ungrouped_scan",
+                "?pushdown_ungrouped_scan",
                 "?select_alias",
                 "?select_push_to_cube",
                 "?select_ungrouped_scan",
@@ -144,6 +156,7 @@ impl WrapperRules {
                             "?cube_scan_input",
                             "?alias_to_cube",
                             "?push_to_cube",
+                            "?ungrouped_scan",
                             "?in_projection",
                             "?cube_members",
                         ),
@@ -162,6 +175,7 @@ impl WrapperRules {
                         "?expr",
                         "?alias_to_cube",
                         "?pushdown_push_to_cube",
+                        "?pushdown_ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -169,6 +183,7 @@ impl WrapperRules {
                         "?subqueries",
                         "?alias_to_cube",
                         "?pushdown_push_to_cube",
+                        "?pushdown_ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -176,6 +191,7 @@ impl WrapperRules {
                         wrapped_select_group_expr_empty_tail(),
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -183,6 +199,7 @@ impl WrapperRules {
                         wrapped_select_aggr_expr_empty_tail(),
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -190,6 +207,7 @@ impl WrapperRules {
                         wrapped_select_window_expr_empty_tail(),
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -197,6 +215,7 @@ impl WrapperRules {
                         "?cube_scan_input",
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -205,6 +224,7 @@ impl WrapperRules {
                         wrapped_select_filter_expr_empty_tail(),
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -215,6 +235,7 @@ impl WrapperRules {
                         wrapped_select_order_expr_empty_tail(),
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "WrapperPullupReplacerInProjection:true",
                         "?cube_members",
                     ),
@@ -231,6 +252,8 @@ impl WrapperRules {
                 "?projection_alias",
                 "?push_to_cube",
                 "?pushdown_push_to_cube",
+                "?ungrouped_scan",
+                "?pushdown_ungrouped_scan",
                 "?select_alias",
                 "?select_push_to_cube",
                 "?select_ungrouped_scan",
@@ -243,6 +266,8 @@ impl WrapperRules {
         projection_alias_var: &'static str,
         push_to_cube_var: &'static str,
         pushdown_push_to_cube_var: &'static str,
+        ungrouped_scan_var: &'static str,
+        pushdown_ungrouped_scan_var: &'static str,
         select_alias_var: &'static str,
         select_push_to_cube_var: &'static str,
         select_ungrouped_scan_var: &'static str,
@@ -251,6 +276,8 @@ impl WrapperRules {
         let projection_alias_var = var!(projection_alias_var);
         let push_to_cube_var = var!(push_to_cube_var);
         let pushdown_push_to_cube_var = var!(pushdown_push_to_cube_var);
+        let ungrouped_scan_var = var!(ungrouped_scan_var);
+        let pushdown_ungrouped_scan_var = var!(pushdown_ungrouped_scan_var);
         let select_alias_var = var!(select_alias_var);
         let select_push_to_cube_var = var!(select_push_to_cube_var);
         let select_ungrouped_scan_var = var!(select_ungrouped_scan_var);
@@ -262,6 +289,8 @@ impl WrapperRules {
                 projection_alias_var,
                 push_to_cube_var,
                 pushdown_push_to_cube_var,
+                ungrouped_scan_var,
+                pushdown_ungrouped_scan_var,
                 select_alias_var,
                 select_push_to_cube_var,
                 select_ungrouped_scan_var,
@@ -276,6 +305,8 @@ impl WrapperRules {
         projection_alias_var: &'static str,
         push_to_cube_var: &'static str,
         pushdown_push_to_cube_var: &'static str,
+        ungrouped_scan_var: &'static str,
+        pushdown_ungrouped_scan_var: &'static str,
         select_alias_var: &'static str,
         select_push_to_cube_var: &'static str,
         select_ungrouped_scan_var: &'static str,
@@ -285,6 +316,8 @@ impl WrapperRules {
         let projection_alias_var = var!(projection_alias_var);
         let push_to_cube_var = var!(push_to_cube_var);
         let pushdown_push_to_cube_var = var!(pushdown_push_to_cube_var);
+        let ungrouped_scan_var = var!(ungrouped_scan_var);
+        let pushdown_ungrouped_scan_var = var!(pushdown_ungrouped_scan_var);
         let select_alias_var = var!(select_alias_var);
         let select_push_to_cube_var = var!(select_push_to_cube_var);
         let select_ungrouped_scan_var = var!(select_ungrouped_scan_var);
@@ -303,6 +336,8 @@ impl WrapperRules {
                     projection_alias_var,
                     push_to_cube_var,
                     pushdown_push_to_cube_var,
+                    ungrouped_scan_var,
+                    pushdown_ungrouped_scan_var,
                     select_alias_var,
                     select_push_to_cube_var,
                     select_ungrouped_scan_var,
@@ -320,6 +355,8 @@ impl WrapperRules {
         projection_alias_var: Var,
         push_to_cube_var: Var,
         pushdown_push_to_cube_var: Var,
+        ungrouped_scan_var: Var,
+        pushdown_ungrouped_scan_var: Var,
         select_alias_var: Var,
         select_push_to_cube_var: Var,
         select_ungrouped_scan_var: Var,
@@ -332,6 +369,26 @@ impl WrapperRules {
                 WrapperPullupReplacerPushToCube,
                 pushdown_push_to_cube_var,
                 WrapperPushdownReplacerPushToCube
+            ) {
+                return false;
+            }
+            if !copy_flag!(
+                egraph,
+                subst,
+                ungrouped_scan_var,
+                WrapperPullupReplacerUngroupedScan,
+                pushdown_ungrouped_scan_var,
+                WrapperPushdownReplacerUngroupedScan
+            ) {
+                return false;
+            }
+            if !copy_flag!(
+                egraph,
+                subst,
+                ungrouped_scan_var,
+                WrapperPullupReplacerUngroupedScan,
+                select_ungrouped_scan_var,
+                WrappedSelectUngroupedScan
             ) {
                 return false;
             }
@@ -349,12 +406,6 @@ impl WrapperRules {
                         select_push_to_cube_var,
                         egraph.add(LogicalPlanLanguage::WrappedSelectPushToCube(
                             WrappedSelectPushToCube(push_to_cube),
-                        )),
-                    );
-                    subst.insert(
-                        select_ungrouped_scan_var,
-                        egraph.add(LogicalPlanLanguage::WrappedSelectUngroupedScan(
-                            WrappedSelectUngroupedScan(push_to_cube),
                         )),
                     );
                     subst.insert(

@@ -464,6 +464,9 @@ crate::plan_to_language! {
             // We can use sumMeasure instead of SUM(sumMeasure) ONLY in with push to Cube
             // An vice versa, we can't use SUM(sumMeasure) in grouped query to Cube, so it can be allowed ONLY without push to grouped Cube query
             push_to_cube: bool,
+            // This means that `member` is rewritten in context, where data souce (like `from` in WrappedSelect) is actually ungrouped, even when push_to_cube is disabled.
+            // This flag should be passed from top, by the rule that starts wrapping new logical plan node.
+            ungrouped_scan: bool,
             in_projection: bool,
             cube_members: Vec<LogicalPlan>,
         },
@@ -479,6 +482,10 @@ crate::plan_to_language! {
             // We can use sumMeasure instead of SUM(sumMeasure) ONLY in with push to Cube
             // An vice versa, we can't use SUM(sumMeasure) in grouped query to Cube, so it can be allowed ONLY without push to grouped Cube query
             push_to_cube: bool,
+            // When `member` is logical plan this means is is actually ungrouped, even when push_to_cube is disabled.
+            // When `member` is expression it just acts as a pull-through from pushdown.
+            // This flag should make roundtrip from top to bottom and back.
+            ungrouped_scan: bool,
             in_projection: bool,
             cube_members: Vec<LogicalPlan>,
         },
@@ -1942,12 +1949,13 @@ fn wrapper_pushdown_replacer(
     members: impl Display,
     alias_to_cube: impl Display,
     push_to_cube: impl Display,
+    ungrouped_scan: impl Display,
     in_projection: impl Display,
     cube_members: impl Display,
 ) -> String {
     format!(
-        "(WrapperPushdownReplacer {} {} {} {} {})",
-        members, alias_to_cube, push_to_cube, in_projection, cube_members
+        "(WrapperPushdownReplacer {} {} {} {} {} {})",
+        members, alias_to_cube, push_to_cube, ungrouped_scan, in_projection, cube_members
     )
 }
 
@@ -1955,12 +1963,13 @@ fn wrapper_pullup_replacer(
     members: impl Display,
     alias_to_cube: impl Display,
     push_to_cube: impl Display,
+    ungrouped_scan: impl Display,
     in_projection: impl Display,
     cube_members: impl Display,
 ) -> String {
     format!(
-        "(WrapperPullupReplacer {} {} {} {} {})",
-        members, alias_to_cube, push_to_cube, in_projection, cube_members
+        "(WrapperPullupReplacer {} {} {} {} {} {})",
+        members, alias_to_cube, push_to_cube, ungrouped_scan, in_projection, cube_members
     )
 }
 

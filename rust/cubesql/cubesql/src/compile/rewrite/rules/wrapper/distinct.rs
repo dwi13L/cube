@@ -30,6 +30,7 @@ impl WrapperRules {
                     ),
                     "?alias_to_cube",
                     "?push_to_cube",
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 ),
@@ -54,10 +55,13 @@ impl WrapperRules {
                         "?select_alias",
                         "WrappedSelectDistinct:true",
                         "WrappedSelectPushToCube:false",
+                        // TODO why is it passthrough? distinct is a kind of aggregation
                         "?select_ungrouped_scan",
                     ),
                     "?alias_to_cube",
                     "?push_to_cube",
+                    // TODO why is it passthrough? distinct is a kind of aggregation. this field just reflects ?select_ungrouped_scan
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 ),

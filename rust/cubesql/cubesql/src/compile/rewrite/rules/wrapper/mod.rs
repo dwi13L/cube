@@ -36,7 +36,8 @@ use crate::{
             replacer_push_down_node,
         },
         transforming_rewrite, wrapper_pullup_replacer, wrapper_pushdown_replacer, ListType,
-        WrapperPullupReplacerPushToCube, WrapperPushdownReplacerPushToCube,
+        WrapperPullupReplacerPushToCube, WrapperPullupReplacerUngroupedScan,
+        WrapperPushdownReplacerPushToCube, WrapperPushdownReplacerUngroupedScan,
     },
     config::ConfigObj,
     copy_flag,
@@ -117,6 +118,7 @@ impl WrapperRules {
                     node,
                     "?alias_to_cube",
                     "?push_to_cube",
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 )
@@ -133,6 +135,7 @@ impl WrapperRules {
                     node,
                     "?alias_to_cube",
                     "?push_to_cube",
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 )
@@ -145,6 +148,7 @@ impl WrapperRules {
                 list_node,
                 "?alias_to_cube",
                 "?push_to_cube",
+                "?ungrouped_scan",
                 "?in_projection",
                 "?cube_members",
             ),
@@ -152,19 +156,29 @@ impl WrapperRules {
                 substitute_list_node,
                 "?alias_to_cube",
                 "?pullup_push_to_cube",
+                "?pullup_ungrouped_scan",
                 "?in_projection",
                 "?cube_members",
             ),
-            Self::transform_list_tail("?push_to_cube", "?pullup_push_to_cube"),
+            Self::transform_list_tail(
+                "?push_to_cube",
+                "?pullup_push_to_cube",
+                "?ungrouped_scan",
+                "?pullup_ungrouped_scan",
+            ),
         )]);
     }
 
     fn transform_list_tail(
         push_to_cube_var: &str,
         pullup_push_to_cube_var: &str,
+        ungrouped_scan_var: &str,
+        pullup_ungrouped_scan_var: &str,
     ) -> impl Fn(&mut CubeEGraph, &mut Subst) -> bool {
         let push_to_cube_var = var!(push_to_cube_var);
         let pullup_push_to_cube_var = var!(pullup_push_to_cube_var);
+        let ungrouped_scan_var = var!(ungrouped_scan_var);
+        let pullup_ungrouped_scan_var = var!(pullup_ungrouped_scan_var);
         move |egraph, subst| {
             if !copy_flag!(
                 egraph,
@@ -173,6 +187,16 @@ impl WrapperRules {
                 WrapperPushdownReplacerPushToCube,
                 pullup_push_to_cube_var,
                 WrapperPullupReplacerPushToCube
+            ) {
+                return false;
+            }
+            if !copy_flag!(
+                egraph,
+                subst,
+                ungrouped_scan_var,
+                WrapperPushdownReplacerUngroupedScan,
+                pullup_ungrouped_scan_var,
+                WrapperPullupReplacerUngroupedScan
             ) {
                 return false;
             }
@@ -194,6 +218,7 @@ impl WrapperRules {
                     node,
                     "?alias_to_cube",
                     "?push_to_cube",
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 )
@@ -210,6 +235,7 @@ impl WrapperRules {
                     node,
                     "?alias_to_cube",
                     "?push_to_cube",
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 )
@@ -217,6 +243,7 @@ impl WrapperRules {
             &[
                 "?alias_to_cube",
                 "?push_to_cube",
+                "?ungrouped_scan",
                 "?in_projection",
                 "?cube_members",
             ],
@@ -228,6 +255,7 @@ impl WrapperRules {
                 list_type.empty_list(),
                 "?alias_to_cube",
                 "?push_to_cube",
+                "?ungrouped_scan",
                 "?in_projection",
                 "?cube_members",
             ),
@@ -235,19 +263,29 @@ impl WrapperRules {
                 substitute_list_type.empty_list(),
                 "?alias_to_cube",
                 "?pullup_push_to_cube",
+                "?pullup_ungrouped_scan",
                 "?in_projection",
                 "?cube_members",
             ),
-            Self::transform_flat_list_tail("?push_to_cube", "?pullup_push_to_cube"),
+            Self::transform_flat_list_tail(
+                "?push_to_cube",
+                "?pullup_push_to_cube",
+                "?ungrouped_scan",
+                "?pullup_ungrouped_scan",
+            ),
         )]);
     }
 
     fn transform_flat_list_tail(
         push_to_cube_var: &str,
         pullup_push_to_cube_var: &str,
+        ungrouped_scan_var: &str,
+        pullup_ungrouped_scan_var: &str,
     ) -> impl Fn(&mut CubeEGraph, &mut Subst) -> bool {
         let push_to_cube_var = var!(push_to_cube_var);
         let pullup_push_to_cube_var = var!(pullup_push_to_cube_var);
+        let ungrouped_scan_var = var!(ungrouped_scan_var);
+        let pullup_ungrouped_scan_var = var!(pullup_ungrouped_scan_var);
         move |egraph, subst| {
             if !copy_flag!(
                 egraph,
@@ -256,6 +294,16 @@ impl WrapperRules {
                 WrapperPushdownReplacerPushToCube,
                 pullup_push_to_cube_var,
                 WrapperPullupReplacerPushToCube
+            ) {
+                return false;
+            }
+            if !copy_flag!(
+                egraph,
+                subst,
+                ungrouped_scan_var,
+                WrapperPushdownReplacerUngroupedScan,
+                pullup_ungrouped_scan_var,
+                WrapperPullupReplacerUngroupedScan
             ) {
                 return false;
             }
@@ -276,6 +324,7 @@ impl WrapperRules {
                     node,
                     "?alias_to_cube",
                     "?push_to_cube",
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 )
@@ -292,6 +341,7 @@ impl WrapperRules {
                     node,
                     "?alias_to_cube",
                     "?push_to_cube",
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 )
@@ -304,6 +354,7 @@ impl WrapperRules {
                 list_node,
                 "?alias_to_cube",
                 "?push_to_cube",
+                "?ungrouped_scan",
                 "?in_projection",
                 "?cube_members",
             ),
@@ -311,19 +362,29 @@ impl WrapperRules {
                 list_node,
                 "?alias_to_cube",
                 "?pullup_push_to_cube",
+                "?pullup_ungrouped_scan",
                 "?in_projection",
                 "?cube_members",
             ),
-            Self::transform_expr_list_tail("?push_to_cube", "?pullup_push_to_cube"),
+            Self::transform_expr_list_tail(
+                "?push_to_cube",
+                "?pullup_push_to_cube",
+                "?ungrouped_scan",
+                "?pullup_ungrouped_scan",
+            ),
         )]);
     }
 
     fn transform_expr_list_tail(
         push_to_cube_var: &str,
         pullup_push_to_cube_var: &str,
+        ungrouped_scan_var: &str,
+        pullup_ungrouped_scan_var: &str,
     ) -> impl Fn(&mut CubeEGraph, &mut Subst) -> bool {
         let push_to_cube_var = var!(push_to_cube_var);
         let pullup_push_to_cube_var = var!(pullup_push_to_cube_var);
+        let ungrouped_scan_var = var!(ungrouped_scan_var);
+        let pullup_ungrouped_scan_var = var!(pullup_ungrouped_scan_var);
         move |egraph, subst| {
             if !copy_flag!(
                 egraph,
@@ -332,6 +393,16 @@ impl WrapperRules {
                 WrapperPushdownReplacerPushToCube,
                 pullup_push_to_cube_var,
                 WrapperPullupReplacerPushToCube
+            ) {
+                return false;
+            }
+            if !copy_flag!(
+                egraph,
+                subst,
+                ungrouped_scan_var,
+                WrapperPushdownReplacerUngroupedScan,
+                pullup_ungrouped_scan_var,
+                WrapperPullupReplacerUngroupedScan
             ) {
                 return false;
             }

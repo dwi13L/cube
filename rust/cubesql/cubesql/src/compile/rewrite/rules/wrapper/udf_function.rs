@@ -6,7 +6,8 @@ use crate::{
         transforming_rewrite, udf_expr_var_arg, udf_fun_expr_args, udf_fun_expr_args_empty_tail,
         wrapper_pullup_replacer, wrapper_pushdown_replacer, ScalarUDFExprFun,
         WrapperPullupReplacerAliasToCube, WrapperPullupReplacerPushToCube,
-        WrapperPushdownReplacerPushToCube,
+        WrapperPullupReplacerUngroupedScan, WrapperPushdownReplacerPushToCube,
+        WrapperPushdownReplacerUngroupedScan,
     },
     copy_flag, var, var_iter,
 };
@@ -21,6 +22,7 @@ impl WrapperRules {
                     udf_expr_var_arg("?fun", "?args"),
                     "?alias_to_cube",
                     "?push_to_cube",
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 ),
@@ -30,6 +32,7 @@ impl WrapperRules {
                         "?args",
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "?in_projection",
                         "?cube_members",
                     ),
@@ -43,6 +46,7 @@ impl WrapperRules {
                         "?args",
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "?in_projection",
                         "?cube_members",
                     ),
@@ -51,6 +55,7 @@ impl WrapperRules {
                     udf_expr_var_arg("?fun", "?args"),
                     "?alias_to_cube",
                     "?push_to_cube",
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 ),
@@ -62,6 +67,7 @@ impl WrapperRules {
                     udf_fun_expr_args("?left", "?right"),
                     "?alias_to_cube",
                     "?push_to_cube",
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 ),
@@ -70,6 +76,7 @@ impl WrapperRules {
                         "?left",
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "?in_projection",
                         "?cube_members",
                     ),
@@ -77,6 +84,7 @@ impl WrapperRules {
                         "?right",
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "?in_projection",
                         "?cube_members",
                     ),
@@ -89,6 +97,7 @@ impl WrapperRules {
                         "?left",
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "?in_projection",
                         "?cube_members",
                     ),
@@ -96,6 +105,7 @@ impl WrapperRules {
                         "?right",
                         "?alias_to_cube",
                         "?push_to_cube",
+                        "?ungrouped_scan",
                         "?in_projection",
                         "?cube_members",
                     ),
@@ -104,6 +114,7 @@ impl WrapperRules {
                     udf_fun_expr_args("?left", "?right"),
                     "?alias_to_cube",
                     "?push_to_cube",
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 ),
@@ -114,6 +125,7 @@ impl WrapperRules {
                     udf_fun_expr_args_empty_tail(),
                     "?alias_to_cube",
                     "?push_to_cube",
+                    "?ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 ),
@@ -121,10 +133,16 @@ impl WrapperRules {
                     udf_fun_expr_args_empty_tail(),
                     "?alias_to_cube",
                     "?pullup_push_to_cube",
+                    "?pullup_ungrouped_scan",
                     "?in_projection",
                     "?cube_members",
                 ),
-                self.transform_udf_expr_tail("?push_to_cube", "?pullup_push_to_cube"),
+                self.transform_udf_expr_tail(
+                    "?push_to_cube",
+                    "?pullup_push_to_cube",
+                    "?ungrouped_scan",
+                    "?pullup_ungrouped_scan",
+                ),
             ),
         ]);
     }
@@ -164,9 +182,13 @@ impl WrapperRules {
         &self,
         push_to_cube_var: &'static str,
         pullup_push_to_cube_var: &'static str,
+        ungrouped_scan_var: &'static str,
+        pullup_ungrouped_scan_var: &'static str,
     ) -> impl Fn(&mut CubeEGraph, &mut Subst) -> bool {
         let push_to_cube_var = var!(push_to_cube_var);
         let pullup_push_to_cube_var = var!(pullup_push_to_cube_var);
+        let ungrouped_scan_var = var!(ungrouped_scan_var);
+        let pullup_ungrouped_scan_var = var!(pullup_ungrouped_scan_var);
         move |egraph, subst| {
             if !copy_flag!(
                 egraph,
@@ -175,6 +197,16 @@ impl WrapperRules {
                 WrapperPushdownReplacerPushToCube,
                 pullup_push_to_cube_var,
                 WrapperPullupReplacerPushToCube
+            ) {
+                return false;
+            }
+            if !copy_flag!(
+                egraph,
+                subst,
+                ungrouped_scan_var,
+                WrapperPushdownReplacerUngroupedScan,
+                pullup_ungrouped_scan_var,
+                WrapperPullupReplacerUngroupedScan
             ) {
                 return false;
             }
