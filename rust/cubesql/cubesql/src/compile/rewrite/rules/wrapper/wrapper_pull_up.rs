@@ -131,6 +131,128 @@ impl WrapperRules {
                     "?ungrouped_scan_out",
                 ),
             ),
+            // This rule would introduce new representations:
+            // replacers from node on top of this node would be able to run with enabled push to Cube.
+            // However, those representation are not valid on their own, they are necessary
+            // for flattening to work.
+            // So, they will be disallowed to pullup by nontrivial pullup rules.
+            // Also note that trivial pullup rules are allowed to pullup without additional checks,
+            // because it checks that `from` is not WrappedSelect, so push=true in input can be valid
+            // There's no equivalent for non-trivial pullup, because it has WrappedSelect in `from`,
+            // so there's no way to use push to Cube even after flattening
+            transforming_rewrite(
+                "wrapper-pull-up-to-cube-scan-non-wrapped-select-with-push",
+                cube_scan_wrapper(
+                    wrapped_select(
+                        "?select_type",
+                        wrapper_pullup_replacer(
+                            "?projection_expr",
+                            "?alias_to_cube",
+                            "?push_to_cube",
+                            "?ungrouped_scan",
+                            "?in_projection",
+                            "?cube_members",
+                        ),
+                        wrapper_pullup_replacer(
+                            "?subqueries",
+                            "?alias_to_cube",
+                            "?push_to_cube",
+                            "?ungrouped_scan",
+                            "?in_projection",
+                            "?cube_members",
+                        ),
+                        wrapper_pullup_replacer(
+                            "?group_expr",
+                            "?alias_to_cube",
+                            "?push_to_cube",
+                            "?ungrouped_scan",
+                            "?in_projection",
+                            "?cube_members",
+                        ),
+                        wrapper_pullup_replacer(
+                            "?aggr_expr",
+                            "?alias_to_cube",
+                            "?push_to_cube",
+                            "?ungrouped_scan",
+                            "?in_projection",
+                            "?cube_members",
+                        ),
+                        wrapper_pullup_replacer(
+                            "?window_expr",
+                            "?alias_to_cube",
+                            "?push_to_cube",
+                            "?ungrouped_scan",
+                            "?in_projection",
+                            "?cube_members",
+                        ),
+                        wrapper_pullup_replacer(
+                            "?cube_scan_input",
+                            "?alias_to_cube",
+                            "?push_to_cube",
+                            "?ungrouped_scan",
+                            "?in_projection",
+                            "?cube_members",
+                        ),
+                        wrapped_select_joins_empty_tail(),
+                        wrapper_pullup_replacer(
+                            "?filter_expr",
+                            "?alias_to_cube",
+                            "?push_to_cube",
+                            "?ungrouped_scan",
+                            "?in_projection",
+                            "?cube_members",
+                        ),
+                        wrapped_select_having_expr_empty_tail(),
+                        "WrappedSelectLimit:None",
+                        "WrappedSelectOffset:None",
+                        wrapper_pullup_replacer(
+                            "?order_expr",
+                            "?alias_to_cube",
+                            "?push_to_cube",
+                            "?ungrouped_scan",
+                            "?in_projection",
+                            "?cube_members",
+                        ),
+                        "?select_alias",
+                        "?select_distinct",
+                        "WrappedSelectPushToCube:true",
+                        "WrappedSelectUngroupedScan:true",
+                    ),
+                    "CubeScanWrapperFinalized:false",
+                ),
+                cube_scan_wrapper(
+                    wrapper_pullup_replacer(
+                        wrapped_select(
+                            "?select_type",
+                            "?projection_expr",
+                            "?subqueries",
+                            "?group_expr",
+                            "?aggr_expr",
+                            "?window_expr",
+                            "?cube_scan_input",
+                            wrapped_select_joins_empty_tail(),
+                            "?filter_expr",
+                            wrapped_select_having_expr_empty_tail(),
+                            "WrappedSelectLimit:None",
+                            "WrappedSelectOffset:None",
+                            "?order_expr",
+                            "?select_alias",
+                            "?select_distinct",
+                            "WrappedSelectPushToCube:true",
+                            "WrappedSelectUngroupedScan:true",
+                        ),
+                        "?alias_to_cube",
+                        // This would allow next LP node on top of this to use push even when from=WrappedSelect(from=CubeScan)
+                        // Wrapper like that would be incorrect, so they will be disallowed by pullup rules for WrappedSelect(from=WrappedSelect) case
+                        "WrapperPullupReplacerPushToCube:true",
+                        "WrapperPullupReplacerUngroupedScan:true",
+                        "?in_projection",
+                        "?cube_members",
+                    ),
+                    "CubeScanWrapperFinalized:false",
+                ),
+                self.transform_pull_up_wrapper_select_for_push("?cube_scan_input"),
+            ),
             transforming_rewrite(
                 "wrapper-pull-up-to-cube-scan-non-trivial-wrapped-select",
                 cube_scan_wrapper(
@@ -317,6 +439,20 @@ impl WrapperRules {
                 ungrouped_scan_out_var,
                 WrapperPullupReplacerUngroupedScan
             ) {
+                return false;
+            }
+
+            true
+        }
+    }
+
+    fn transform_pull_up_wrapper_select_for_push(
+        &self,
+        cube_scan_input_var: &'static str,
+    ) -> impl Fn(&mut CubeEGraph, &mut Subst) -> bool {
+        let cube_scan_input_var = var!(cube_scan_input_var);
+        move |egraph, subst| {
+            for _ in var_list_iter!(egraph[subst[cube_scan_input_var]], WrappedSelect).cloned() {
                 return false;
             }
 
