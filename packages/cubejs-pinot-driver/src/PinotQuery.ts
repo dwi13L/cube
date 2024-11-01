@@ -149,6 +149,7 @@ export class PinotQuery extends BaseQuery {
       '{% if limit %}\nLIMIT {{ limit }}{% endif %}';
     templates.expressions.extract = 'EXTRACT({{ date_part }} FROM {{ expr }})';
     templates.expressions.timestamp_literal = `fromDateTime('{{ value }}', ${DATE_TIME_FORMAT})`;
+    templates.expressions.sort = '{{ expr }} IS NULL {% if nulls_first %}DESC{% else %}ASC{% endif %}, {{ expr }} {% if asc %}ASC{% else %}DESC{% endif %}';
     templates.quotes.identifiers = '"';
     delete templates.types.time;
     delete templates.types.interval;
